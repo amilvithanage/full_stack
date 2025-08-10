@@ -5,6 +5,32 @@
  */
 export type Status = 'ok' | 'unhealthy';
 
+export type Todo = {
+    /**
+     * Unique identifier for the todo
+     */
+    id: string;
+    /**
+     * The title/description of the todo
+     */
+    title: string;
+    /**
+     * Whether the todo is completed
+     */
+    completed: boolean;
+    /**
+     * When the todo was created
+     */
+    createdAt: string;
+};
+
+export type CreateTodoRequest = {
+    /**
+     * The title/description of the todo
+     */
+    title: string;
+};
+
 export type _Error = {
     /**
      * A unique error code for programmatic handling
@@ -42,6 +68,60 @@ export type GetHealthResponses = {
 };
 
 export type GetHealthResponse = GetHealthResponses[keyof GetHealthResponses];
+
+export type GetTodosData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/todos';
+};
+
+export type GetTodosErrors = {
+    /**
+     * Internal server error
+     */
+    500: _Error;
+};
+
+export type GetTodosError = GetTodosErrors[keyof GetTodosErrors];
+
+export type GetTodosResponses = {
+    /**
+     * List of todos retrieved successfully
+     */
+    200: Array<Todo>;
+};
+
+export type GetTodosResponse = GetTodosResponses[keyof GetTodosResponses];
+
+export type CreateTodoData = {
+    body: CreateTodoRequest;
+    path?: never;
+    query?: never;
+    url: '/todos';
+};
+
+export type CreateTodoErrors = {
+    /**
+     * Bad request - invalid input
+     */
+    400: _Error;
+    /**
+     * Internal server error
+     */
+    500: _Error;
+};
+
+export type CreateTodoError = CreateTodoErrors[keyof CreateTodoErrors];
+
+export type CreateTodoResponses = {
+    /**
+     * Todo created successfully
+     */
+    201: Todo;
+};
+
+export type CreateTodoResponse = CreateTodoResponses[keyof CreateTodoResponses];
 
 export type ClientOptions = {
     baseUrl: `${string}://${string}` | (string & {});

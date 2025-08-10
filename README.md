@@ -1,84 +1,205 @@
-# Safe Intelligence - Full Stack Engineer - Code Assessment
+# Todo Application - Full Stack Project
 
-This assessment is designed to evaluate your practical skills and understanding of full-stack development, with a focus on TypeScript/React for the frontend, Golang for the backend, and API-first development using OpenAPI. We're looking for clean, well-tested, and maintainable code, along with an understanding of modern software development practices.
+A modern full-stack Todo application built with Go backend and React frontend, featuring a clean API-first architecture using OpenAPI specifications.
 
-You will be given 2 days to complete this assessment.
+## 🏗️ Architecture
 
-## 🚀 The Challenge: Todo Application
+- **Backend**: Go 1.24.2 with Gin framework and OpenAPI code generation
+- **Frontend**: React 19 with TypeScript, Vite, and Mantine UI components
+- **API**: RESTful API with OpenAPI 3.0 specification
+- **Data Store**: In-memory storage for todo items
+- **Containerization**: Docker with docker-compose for easy deployment
 
-Your task is to build a basic full-stack Todo application. To keep the focus on core development skills and reduce setup complexity, the backend will use an in-memory data store for the todo items.
+## ✨ Features
 
-What has been provided:
-- An OpenAPI specification file (`openapi.yaml`) that defines a health check endpoint.
-- A Golang backend with a basic health check endpoint.
-- A React frontend that uses the Mantine component library and only a basic header component with a health check display.
+- ✅ Health check endpoint
+- ✅ Create new todo items
+- ✅ List all todo items
+- ✅ Modern, responsive UI with Mantine components
+- ✅ Real-time updates using React Query
+- ✅ Type-safe API client generated from OpenAPI spec
+- ✅ Docker containerization for both services
+- ✅ Comprehensive error handling and notifications
 
-## ✨ Requirements
+## 🚀 Quick Start
 
-Please implement the following features and ensure your solution meets the specified criteria:
+### Prerequisites
 
-* Extend the provided OpenAPI specification to include endpoints for GET and POST operations on todo items at minimum.
-* Implement the Golang backend to handle these endpoints, this should allow you to create Todo items and retrieve a list of all Todo items at minimum.
-* Extend the React frontend to display a list of todo items and allow users to add new todo items.
-* Dockerise both the Golang backend and the React frontend.
+- **Go**: Version 1.24.2 or later
+- **Node.js**: Version 23 or later
+- **Docker**: For containerized deployment
 
-These are the basic requirements, you can extend the functionality as you see fit, but please ensure that the core requirements are met first.
+### Option 1: Docker (Recommended)
 
-## 🖥️ System Requirements
-
-* **Golang**: Ensure you have Go installed (version 1.24.2 or later).
-* **Node.js**: Ensure you have Node.js installed (version 23 or later).
-
-## 🚀 Usage
-
-To generate the backend and frontend code from the OpenAPI specification, you can use the following commands:
+The easiest way to run the application:
 
 ```bash
-# For the Golang backend
-go generate ./...
+# Clone the repository
+git clone <your-repo-url>
+cd full_stack
 
-# For the React frontend
-npm run openapi
+# Start both services
+docker-compose up --build
 ```
 
-To run the backend you can use:
+The application will be available at:
+- Frontend: http://localhost:80
+- Backend API: http://localhost:8080
+
+### Option 2: Local Development
+
+#### Backend
 
 ```bash
+# Generate Go code from OpenAPI spec
+go generate ./...
+
+# Run the backend
 go run cmd/main.go
 ```
 
-To run the frontend, you can use:
+The backend will start on http://localhost:8080
+
+#### Frontend
 
 ```bash
 cd frontend
 
-# Make sure to install dependencies first
-npm install 
+# Install dependencies
+npm install
 
-# Then start the development server
+# Generate TypeScript client from OpenAPI spec
+npm run openapi
+
+# Start development server
 npm run dev
 ```
 
-The frontend will be available at `http://localhost:5173` and the backend at `http://localhost:8080`. With both the backend and frontend running, you should be able to access the application in your web browser and see this page:
+The frontend will be available at http://localhost:5173
 
-![Todo Application Screenshot](https://github.com/user-attachments/assets/82ed8f26-3acb-492d-bc4a-feebb02e0cbc)
+## 📁 Project Structure
 
-## 💡 Key Considerations
+```
+full_stack/
+├── api/
+│   └── openapi.yml          # OpenAPI specification
+├── cmd/
+│   └── main.go             # Backend entry point
+├── internal/
+│   ├── api/                # Generated API handlers
+│   ├── middleware/         # CORS and logging middleware
+│   └── scheme/            # Generated schemas
+├── frontend/
+│   ├── src/
+│   │   ├── components/     # React components
+│   │   ├── api/           # Generated API client
+│   │   └── App.tsx        # Main application
+│   ├── Dockerfile         # Frontend container
+│   └── package.json       # Frontend dependencies
+├── Dockerfile.backend      # Backend container
+├── docker-compose.yml      # Multi-service orchestration
+└── go.mod                 # Go module definition
+```
 
-While there is a lot of flexibility in how you implement the solution, we are particularly interested in how clean, maintainable, and testable your code is. Here are some key considerations to keep in mind:
+## 🔧 API Endpoints
 
-* **Code Quality**: Write clean, readable, and well-structured code. Adhere to conventional style guides for both Go and TypeScript.
-* **Error Handling**: Implement robust error handling on both the frontend and backend, providing meaningful error messages and appropriate HTTP status codes.
-* **Testing**: Demonstrate a strong commitment to code quality through comprehensive unit and integration tests.
+### Health Check
+- `GET /health` - Service health status
 
-## 📦 Submission Instructions
+### Todos
+- `GET /todos` - Retrieve all todo items
+- `POST /todos` - Create a new todo item
 
-* When you have completed the assessment, please ensure your code is well-organized and follows best practices.
-* Please document your code in the REVIEW.md file, including:
-  * Brief detail of any changes you made.
-  * Your approach to solving the problem.
-  * Any additional improvements you would make if given more time.
-* Create a ZIP archive of your solution, including the frontend and backend code, Dockerfiles, and any other relevant files.
-* Email the ZIP archive back to us.
+### Data Models
 
-Good luck with the assessment! We look forward to seeing your solution and learning about your approach to full-stack development. If you have any questions or need clarification on any aspect of the assessment, please don't hesitate to reach out.
+**Todo Item:**
+```json
+{
+  "id": "uuid-string",
+  "title": "Todo title",
+  "completed": false,
+  "createdAt": "2024-01-15T10:30:00Z"
+}
+```
+
+**Create Todo Request:**
+```json
+{
+  "title": "Todo title"
+}
+```
+
+## 🛠️ Development
+
+### Code Generation
+
+The project uses OpenAPI code generation to maintain consistency between the API specification and implementation:
+
+```bash
+# Generate Go backend code
+go generate ./...
+
+# Generate TypeScript frontend client
+cd frontend && npm run openapi
+```
+
+### Adding New Features
+
+1. Update the OpenAPI specification in `api/openapi.yml`
+2. Regenerate the code using the commands above
+3. Implement the business logic in the generated handlers
+4. Update the frontend to use new endpoints
+
+### Testing
+
+```bash
+# Backend tests
+go test ./...
+
+# Frontend tests
+cd frontend && npm test
+```
+
+## 🐳 Docker
+
+### Backend Container
+- Base image: `golang:1.24.2-alpine`
+- Exposes port 8080
+- Health check endpoint at `/health`
+
+### Frontend Container
+- Base image: `node:23-alpine` for build, `nginx:alpine` for runtime
+- Exposes port 80
+- Serves static files with Nginx
+
+### Docker Compose
+- Orchestrates both services
+- Creates a bridge network for service communication
+- Includes health checks and restart policies
+
+## 🔍 Monitoring
+
+Both services include health checks:
+- Backend: HTTP health check at `/health`
+- Frontend: HTTP health check at root endpoint
+- Docker health checks configured for automatic restart
+
+## 📝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Update the OpenAPI specification if adding new endpoints
+5. Regenerate code and test thoroughly
+6. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🤝 Support
+
+For questions or issues:
+1. Check the existing issues
+2. Create a new issue with detailed information
+3. Include logs and steps to reproduce if applicable

@@ -28,6 +28,12 @@ type ServerInterface interface {
 	// Health Check
 	// (GET /health)
 	GetHealth(w http.ResponseWriter, r *http.Request)
+	// Get all todos
+	// (GET /todos)
+	GetTodos(w http.ResponseWriter, r *http.Request)
+	// Create a new todo
+	// (POST /todos)
+	CreateTodo(w http.ResponseWriter, r *http.Request)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -44,6 +50,34 @@ func (siw *ServerInterfaceWrapper) GetHealth(w http.ResponseWriter, r *http.Requ
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetHealth(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetTodos operation middleware
+func (siw *ServerInterfaceWrapper) GetTodos(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetTodos(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateTodo operation middleware
+func (siw *ServerInterfaceWrapper) CreateTodo(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateTodo(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -174,6 +208,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	}
 
 	m.HandleFunc("GET "+options.BaseURL+"/health", wrapper.GetHealth)
+	m.HandleFunc("GET "+options.BaseURL+"/todos", wrapper.GetTodos)
+	m.HandleFunc("POST "+options.BaseURL+"/todos", wrapper.CreateTodo)
 
 	return m
 }
@@ -206,11 +242,77 @@ func (response GetHealth500JSONResponse) VisitGetHealthResponse(w http.ResponseW
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetTodosRequestObject struct {
+}
+
+type GetTodosResponseObject interface {
+	VisitGetTodosResponse(w http.ResponseWriter) error
+}
+
+type GetTodos200JSONResponse []Todo
+
+func (response GetTodos200JSONResponse) VisitGetTodosResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetTodos500JSONResponse Error
+
+func (response GetTodos500JSONResponse) VisitGetTodosResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateTodoRequestObject struct {
+	Body *CreateTodoJSONRequestBody
+}
+
+type CreateTodoResponseObject interface {
+	VisitCreateTodoResponse(w http.ResponseWriter) error
+}
+
+type CreateTodo201JSONResponse Todo
+
+func (response CreateTodo201JSONResponse) VisitCreateTodoResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateTodo400JSONResponse Error
+
+func (response CreateTodo400JSONResponse) VisitCreateTodoResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateTodo500JSONResponse Error
+
+func (response CreateTodo500JSONResponse) VisitCreateTodoResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// Health Check
 	// (GET /health)
 	GetHealth(ctx context.Context, request GetHealthRequestObject) (GetHealthResponseObject, error)
+	// Get all todos
+	// (GET /todos)
+	GetTodos(ctx context.Context, request GetTodosRequestObject) (GetTodosResponseObject, error)
+	// Create a new todo
+	// (POST /todos)
+	CreateTodo(ctx context.Context, request CreateTodoRequestObject) (CreateTodoResponseObject, error)
 }
 
 type StrictHandlerFunc = strictnethttp.StrictHTTPHandlerFunc
@@ -266,17 +368,79 @@ func (sh *strictHandler) GetHealth(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GetTodos operation middleware
+func (sh *strictHandler) GetTodos(w http.ResponseWriter, r *http.Request) {
+	var request GetTodosRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetTodos(ctx, request.(GetTodosRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetTodos")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetTodosResponseObject); ok {
+		if err := validResponse.VisitGetTodosResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateTodo operation middleware
+func (sh *strictHandler) CreateTodo(w http.ResponseWriter, r *http.Request) {
+	var request CreateTodoRequestObject
+
+	var body CreateTodoJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateTodo(ctx, request.(CreateTodoRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateTodo")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateTodoResponseObject); ok {
+		if err := validResponse.VisitCreateTodoResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"H4sIAAAAAAAC/5RTTW8UMQz9K5bhGLoDqJe5LQhBb0jtDfWQZrwzKZuPOk7VVTX/HSWZ3SldVInTWPGz",
-	"37P95hlNcDF48pKwf8ZkJnK6ht+YA5cgcojEYqk+mzBQ+Q6UDNsoNnjscQvZ24dMQKUKCgh2gSFyGFk7",
-	"p8UamLQf9taPqJCetIt7wv6y6xTKIRL2aL3QSIyzQkcp6fGfRFN22n9g0oO+2x8Jj/gXnXHrIXt6imSE",
-	"hgUXjMnMNEDwIBNBIn4kvsCThiRcFM6zQqaHbJkG7H+1qVdZtyd8uLsnI0XytWjJ6VzxzUQwkd7LBKlC",
-	"IOxO3NZUzT67whJ+o8LsG/pQWNZpau61yFmh9btwTvpFJ2tAwhBAx7i3RteEQrFS292U1HZNwfbnFSp8",
-	"JE6tw8eL7qIrc4VIXkeLPX6uTwqjlqkOumlKSziSlE9xSu13NWCP30l+NETZZorBp2aiT13XvOSFfC18",
-	"oXJzn4qCoxnPLZhOm37PtMMe321WF28WC2+We7y+5FJ8fsEC/HuJ1+1AYBMcTzIrvPxP7W9pbP/Y29Sr",
-	"HwosZec0H7DHtln4OpGp1tBjKvMtC7+d53n+EwAA//8KFDZg3gMAAA==",
+	"H4sIAAAAAAAC/8xWUW/bNhD+K8Rtj1IsOU666c0phi5AH4Y1w4ANeWDIs8VOIpXjKY1R6L8PJGXLsYUU",
+	"w7pib7J4vPvu+747+TMo13bOomUP1WfwqsZWxse3hJLxzmn3Kz726Dm87Mh1SGwwhrDhBsODRq/IdGyc",
+	"hQruahTxaHH0XriN4HDgtIMM8Fm2XbgMN/1ObMkppJA1g1Y+v0e75Rqqq6LIoDV2/7vMgHdduOSZjN3C",
+	"MGRA+NgbQg3VnyOg+0OYe/iIimHI4CciR+cdKKdnGliL3prHHgWGWyIEiY0j0ZHbkmxbyUaJWlrdBBBH",
+	"zUTAY21jGbdIoXiL3svtbKG6b6XNCaWWD82+4D7+mKa1Fb3F5w4Vox7jnFI9EWrhbOTWIz0hXcCXaIpd",
+	"T7Dm+PrAkns/r22NsuFa+Biy1zXUNipitn0bqri/IIPepuhdqDJ1E89OQGYQzDanUbjEAfopmt9r5Brp",
+	"YCxhvJjCjwpuZOPxUPHBuQalDSVVdLle82xyO2X+JL0Yg1/osiyWq7wo8/Lqriyqy6Iqij8gg42jVjJU",
+	"oCVjzqbFuYbNTE+/JesZjZbNxiBF682OTrm8xNXV9Zscf/jxIS+X+jKXq6vrfLW8vi5X5ZtVURRzZf+T",
+	"uX3dciawlupmcCzRJMC5DUMSYzfuHOqN9EYlYWTXNUbJeHBoLVpJrKcjsf7lFjJ4QvIpQ3lRXBSBDNeh",
+	"lZ2BCi7jqww6yXV03iJ5NzxuMTok+DLmu9VQwTvkn1NEaNZ3zvpk2WVRJOdaRhsvHqFcfPQBwX7Znhve",
+	"H2bve8INVPDdYtrSi3FFL8YJPSV6vDxP5ksSP6SRDUOzH9Ihg6t/iP01jGnrvl562hAhzPdtK2kHFSRm",
+	"xdsaVVwWcutDfyPh9yF4EQzgX5PnLgb8S3UMY/tFOeLuGg6sSyK5m+v8vfEcZyogE4RMBp9QC98rhd5v",
+	"+qb5djLcWkayshm/HOmzcqLDO2QhmyYBPhIiUXs/ZNA5P8P+9P8BkkPR843Tu6/W1fkflOHlMDD1OJxp",
+	"X341AEnyc1bj7hn32pmuq2+h643UYqRc5MLYJ9kYLYztev5feStJKKSw+Gn/hTn11zAMfwcAAP//jZLc",
+	"taYKAAA=",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

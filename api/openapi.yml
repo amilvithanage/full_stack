@@ -84,6 +84,79 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /todos/{id}:
+    put:
+      summary: Update a todo
+      operationId: updateTodo
+      tags:
+        - Todos
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The todo ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTodoRequest'
+      responses:
+        200:
+          description: Todo updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+        400:
+          description: Bad request - invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        404:
+          description: Todo not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    
+    delete:
+      summary: Delete a todo
+      operationId: deleteTodo
+      tags:
+        - Todos
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The todo ID
+      responses:
+        204:
+          description: Todo deleted successfully
+        404:
+          description: Todo not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
 components:
   schemas:
     Status:
@@ -131,6 +204,20 @@ components:
           minLength: 1
           maxLength: 500
           example: "Buy groceries"
+    
+    UpdateTodoRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          description: The title/description of the todo
+          minLength: 1
+          maxLength: 500
+          example: "Buy groceries"
+        completed:
+          type: boolean
+          description: Whether the todo is completed
+          example: false
     
     Error:
       type: object

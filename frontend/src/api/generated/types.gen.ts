@@ -31,6 +31,17 @@ export type CreateTodoRequest = {
     title: string;
 };
 
+export type UpdateTodoRequest = {
+    /**
+     * The title/description of the todo
+     */
+    title?: string;
+    /**
+     * Whether the todo is completed
+     */
+    completed?: boolean;
+};
+
 export type _Error = {
     /**
      * A unique error code for programmatic handling
@@ -122,6 +133,78 @@ export type CreateTodoResponses = {
 };
 
 export type CreateTodoResponse = CreateTodoResponses[keyof CreateTodoResponses];
+
+export type DeleteTodoData = {
+    body?: never;
+    path: {
+        /**
+         * The todo ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/todos/{id}';
+};
+
+export type DeleteTodoErrors = {
+    /**
+     * Todo not found
+     */
+    404: _Error;
+    /**
+     * Internal server error
+     */
+    500: _Error;
+};
+
+export type DeleteTodoError = DeleteTodoErrors[keyof DeleteTodoErrors];
+
+export type DeleteTodoResponses = {
+    /**
+     * Todo deleted successfully
+     */
+    204: void;
+};
+
+export type DeleteTodoResponse = DeleteTodoResponses[keyof DeleteTodoResponses];
+
+export type UpdateTodoData = {
+    body: UpdateTodoRequest;
+    path: {
+        /**
+         * The todo ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/todos/{id}';
+};
+
+export type UpdateTodoErrors = {
+    /**
+     * Bad request - invalid input
+     */
+    400: _Error;
+    /**
+     * Todo not found
+     */
+    404: _Error;
+    /**
+     * Internal server error
+     */
+    500: _Error;
+};
+
+export type UpdateTodoError = UpdateTodoErrors[keyof UpdateTodoErrors];
+
+export type UpdateTodoResponses = {
+    /**
+     * Todo updated successfully
+     */
+    200: Todo;
+};
+
+export type UpdateTodoResponse = UpdateTodoResponses[keyof UpdateTodoResponses];
 
 export type ClientOptions = {
     baseUrl: `${string}://${string}` | (string & {});

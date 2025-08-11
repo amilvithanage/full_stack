@@ -20,6 +20,7 @@ import (
 	. "full-stack-assesment/internal/scheme"
 
 	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/oapi-codegen/runtime"
 	strictnethttp "github.com/oapi-codegen/runtime/strictmiddleware/nethttp"
 )
 
@@ -34,6 +35,12 @@ type ServerInterface interface {
 	// Create a new todo
 	// (POST /todos)
 	CreateTodo(w http.ResponseWriter, r *http.Request)
+	// Delete a todo
+	// (DELETE /todos/{id})
+	DeleteTodo(w http.ResponseWriter, r *http.Request, id string)
+	// Update a todo
+	// (PUT /todos/{id})
+	UpdateTodo(w http.ResponseWriter, r *http.Request, id string)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -78,6 +85,56 @@ func (siw *ServerInterfaceWrapper) CreateTodo(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateTodo(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteTodo operation middleware
+func (siw *ServerInterfaceWrapper) DeleteTodo(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteTodo(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateTodo operation middleware
+func (siw *ServerInterfaceWrapper) UpdateTodo(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateTodo(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -210,6 +267,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/health", wrapper.GetHealth)
 	m.HandleFunc("GET "+options.BaseURL+"/todos", wrapper.GetTodos)
 	m.HandleFunc("POST "+options.BaseURL+"/todos", wrapper.CreateTodo)
+	m.HandleFunc("DELETE "+options.BaseURL+"/todos/{id}", wrapper.DeleteTodo)
+	m.HandleFunc("PUT "+options.BaseURL+"/todos/{id}", wrapper.UpdateTodo)
 
 	return m
 }
@@ -302,6 +361,85 @@ func (response CreateTodo500JSONResponse) VisitCreateTodoResponse(w http.Respons
 	return json.NewEncoder(w).Encode(response)
 }
 
+type DeleteTodoRequestObject struct {
+	Id string `json:"id"`
+}
+
+type DeleteTodoResponseObject interface {
+	VisitDeleteTodoResponse(w http.ResponseWriter) error
+}
+
+type DeleteTodo204Response struct {
+}
+
+func (response DeleteTodo204Response) VisitDeleteTodoResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteTodo404JSONResponse Error
+
+func (response DeleteTodo404JSONResponse) VisitDeleteTodoResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteTodo500JSONResponse Error
+
+func (response DeleteTodo500JSONResponse) VisitDeleteTodoResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateTodoRequestObject struct {
+	Id   string `json:"id"`
+	Body *UpdateTodoJSONRequestBody
+}
+
+type UpdateTodoResponseObject interface {
+	VisitUpdateTodoResponse(w http.ResponseWriter) error
+}
+
+type UpdateTodo200JSONResponse Todo
+
+func (response UpdateTodo200JSONResponse) VisitUpdateTodoResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateTodo400JSONResponse Error
+
+func (response UpdateTodo400JSONResponse) VisitUpdateTodoResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateTodo404JSONResponse Error
+
+func (response UpdateTodo404JSONResponse) VisitUpdateTodoResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateTodo500JSONResponse Error
+
+func (response UpdateTodo500JSONResponse) VisitUpdateTodoResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// Health Check
@@ -313,6 +451,12 @@ type StrictServerInterface interface {
 	// Create a new todo
 	// (POST /todos)
 	CreateTodo(ctx context.Context, request CreateTodoRequestObject) (CreateTodoResponseObject, error)
+	// Delete a todo
+	// (DELETE /todos/{id})
+	DeleteTodo(ctx context.Context, request DeleteTodoRequestObject) (DeleteTodoResponseObject, error)
+	// Update a todo
+	// (PUT /todos/{id})
+	UpdateTodo(ctx context.Context, request UpdateTodoRequestObject) (UpdateTodoResponseObject, error)
 }
 
 type StrictHandlerFunc = strictnethttp.StrictHTTPHandlerFunc
@@ -423,24 +567,85 @@ func (sh *strictHandler) CreateTodo(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// DeleteTodo operation middleware
+func (sh *strictHandler) DeleteTodo(w http.ResponseWriter, r *http.Request, id string) {
+	var request DeleteTodoRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteTodo(ctx, request.(DeleteTodoRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteTodo")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteTodoResponseObject); ok {
+		if err := validResponse.VisitDeleteTodoResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateTodo operation middleware
+func (sh *strictHandler) UpdateTodo(w http.ResponseWriter, r *http.Request, id string) {
+	var request UpdateTodoRequestObject
+
+	request.Id = id
+
+	var body UpdateTodoJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateTodo(ctx, request.(UpdateTodoRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateTodo")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateTodoResponseObject); ok {
+		if err := validResponse.VisitUpdateTodoResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"H4sIAAAAAAAC/8xWUW/bNhD+K8Rtj1IsOU666c0phi5AH4Y1w4ANeWDIs8VOIpXjKY1R6L8PJGXLsYUU",
-	"w7pib7J4vPvu+747+TMo13bOomUP1WfwqsZWxse3hJLxzmn3Kz726Dm87Mh1SGwwhrDhBsODRq/IdGyc",
-	"hQruahTxaHH0XriN4HDgtIMM8Fm2XbgMN/1ObMkppJA1g1Y+v0e75Rqqq6LIoDV2/7vMgHdduOSZjN3C",
-	"MGRA+NgbQg3VnyOg+0OYe/iIimHI4CciR+cdKKdnGliL3prHHgWGWyIEiY0j0ZHbkmxbyUaJWlrdBBBH",
-	"zUTAY21jGbdIoXiL3svtbKG6b6XNCaWWD82+4D7+mKa1Fb3F5w4Vox7jnFI9EWrhbOTWIz0hXcCXaIpd",
-	"T7Dm+PrAkns/r22NsuFa+Biy1zXUNipitn0bqri/IIPepuhdqDJ1E89OQGYQzDanUbjEAfopmt9r5Brp",
-	"YCxhvJjCjwpuZOPxUPHBuQalDSVVdLle82xyO2X+JL0Yg1/osiyWq7wo8/Lqriyqy6Iqij8gg42jVjJU",
-	"oCVjzqbFuYbNTE+/JesZjZbNxiBF682OTrm8xNXV9Zscf/jxIS+X+jKXq6vrfLW8vi5X5ZtVURRzZf+T",
-	"uX3dciawlupmcCzRJMC5DUMSYzfuHOqN9EYlYWTXNUbJeHBoLVpJrKcjsf7lFjJ4QvIpQ3lRXBSBDNeh",
-	"lZ2BCi7jqww6yXV03iJ5NzxuMTok+DLmu9VQwTvkn1NEaNZ3zvpk2WVRJOdaRhsvHqFcfPQBwX7Znhve",
-	"H2bve8INVPDdYtrSi3FFL8YJPSV6vDxP5ksSP6SRDUOzH9Ihg6t/iP01jGnrvl562hAhzPdtK2kHFSRm",
-	"xdsaVVwWcutDfyPh9yF4EQzgX5PnLgb8S3UMY/tFOeLuGg6sSyK5m+v8vfEcZyogE4RMBp9QC98rhd5v",
-	"+qb5djLcWkayshm/HOmzcqLDO2QhmyYBPhIiUXs/ZNA5P8P+9P8BkkPR843Tu6/W1fkflOHlMDD1OJxp",
-	"X341AEnyc1bj7hn32pmuq2+h643UYqRc5MLYJ9kYLYztev5feStJKKSw+Gn/hTn11zAMfwcAAP//jZLc",
-	"taYKAAA=",
+	"H4sIAAAAAAAC/+RWUW/jNgz+KwK3R6ex06S3+S29G24F7mHY9TBgQx5Ui4l1syVXonoNCv/3QZITp7Hb",
+	"bljbFdibLVHiR34fSd1BoetGK1RkIb8DW5RY8/D53iAnvNRC/4rXDi35xcboBg1JDCYkqUL/IdAWRjYk",
+	"tYIcLktkYWt6sM70mpHf0EJDAnjL68YfhnO3ZRujCzT+1gRqfvsJ1YZKyBdpmkAt1e4/S4C2jT9kyUi1",
+	"gbZNwOC1kwYF5H90gFZ7M331FQuCNoGfjNFmGEGhxUgAS+aUvHbI0J9i3oittWGN0RvD65qTLFjJlag8",
+	"iINgAuDOt1SEGzTeeY3W8s2oo9LVXE0McsGvqp3Dnf1hmpaKOYW3DRaEorPTReGMQcG0Crm1aG7QnMBT",
+	"aQpR97DG8vWZODk7zm2JvKKS2WCy49X7lkXArFztveg/IQGnovXWe+mjCXtHIBPwYhvjyB8iD/0YzW8l",
+	"UolmLywmLevNDxyueWVx7/FK6wq58i6LoHKxpNHLVX/zN25ZZ3yPl1k6m0/SbJItLrM0P03zNP0dElhr",
+	"U3OCHAQnnJCscSxgORLTlyg9KVCRXEs0QXqjpZPNTnG+OHs3wR9+vJpkM3E64fPF2WQ+OzvL5tm7eZqm",
+	"Y25fpG4fl5z0WYt+EzikqCdgTIZfGvFUE3pRebyJDneUFb8k1VoPYZ1zK4sYKW+aShY8bOzDCAXGlv0W",
+	"W/5yAQncoLHxhuwkPUl94LpBxRsJOZyGpQQaTmVI+DRWtP/cYCDE0xHuuxCQw0ekn6OFl4BttLKRqVma",
+	"RsIUoQoHD1BOv1qPYDeChjzbfUf63uAacvhu2s+uaTe4pl3fOpZfd3g1msz7SfwcG5nXyq51tQks/iH2",
+	"xzDGWfS4675vejPr6pqbLeQQM8vel1iEFso31sfXJXzljadeAPYxei6Dwb9kRxLWT9IROnovYW4M345F",
+	"/klaCvXjkTGDZCTeoGDWFQVau3ZV9Xo0XChCo3jVzdM4bI94+IjEeFVFwAdExNSu2gQabUey37+qICoU",
+	"LZ1rsX22qIbPtvZ+MZBx2A64z54NQKR8mNXQe7puP+B1/hq8nnPBupSzCZPqhldSMKkaR29KW5FCxpnC",
+	"b7tpcqyvfZ1P76Ro4yjwY22ouA9hvVNcww2vkdD4y0anmmfp4gP4EQN5aPqQgOJ1eNIKOFZScpCQ48m1",
+	"GqhsPjJKvcOIfUwW85enJCBQmthaOyXelBIid4w/pIIEvHYHlPevpv+E8udvasNn4N9qaunrNDUX0L3N",
+	"pvZ/r6ConIcrqG3bvwIAAP//bk7ZhgQRAAA=",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

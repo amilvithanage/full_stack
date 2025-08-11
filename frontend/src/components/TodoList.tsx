@@ -1,12 +1,15 @@
 import { useState } from 'react';
-import { Box, Card, Text, Button, TextInput, Group, Stack, Badge, ActionIcon, Checkbox } from '@mantine/core';
+import { Box, Card, Text, Button, TextInput, Group, Stack, ActionIcon, Checkbox, Modal, Textarea } from '@mantine/core';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getTodos, createTodo } from '../api/generated';
-import { IconPlus, IconTrash } from '@tabler/icons-react';
+import { getTodos, createTodo, deleteTodo, updateTodo } from '../api/generated';
+import { IconPlus, IconTrash, IconEdit } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 
 export function TodoList() {
   const [newTodoTitle, setNewTodoTitle] = useState('');
+  const [editingTodo, setEditingTodo] = useState<{ id: string; title: string; completed: boolean } | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editCompleted, setEditCompleted] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: todos = [], isLoading, error } = useQuery({
@@ -42,6 +45,56 @@ export function TodoList() {
     },
   });
 
+  const updateTodoMutation = useMutation({
+    mutationFn: async ({ id, title, completed }: { id: string; title?: string; completed?: boolean }) => {
+      const response = await updateTodo({
+        path: { id },
+        body: { title, completed },
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['todos'] });
+      setEditingTodo(null);
+      setEditTitle('');
+      setEditCompleted(false);
+      notifications.show({
+        title: 'Success',
+        message: 'Todo updated successfully!',
+        color: 'green',
+      });
+    },
+    onError: (error: any) => {
+      notifications.show({
+        title: 'Error',
+        message: error.message || 'Failed to update todo',
+        color: 'red',
+      });
+    },
+  });
+
+  const deleteTodoMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await deleteTodo({ path: { id } });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['todos'] });
+      notifications.show({
+        title: 'Success',
+        message: 'Todo deleted successfully!',
+        color: 'green',
+      });
+    },
+    onError: (error: any) => {
+      notifications.show({
+        title: 'Error',
+        message: error.message || 'Failed to delete todo',
+        color: 'red',
+      });
+    },
+  });
+
   const handleCreateTodo = () => {
     if (newTodoTitle.trim()) {
       createTodoMutation.mutate(newTodoTitle.trim());
@@ -52,6 +105,33 @@ export function TodoList() {
     if (event.key === 'Enter') {
       handleCreateTodo();
     }
+  };
+
+  const handleEditTodo = (todo: { id: string; title: string; completed: boolean }) => {
+    setEditingTodo(todo);
+    setEditTitle(todo.title);
+    setEditCompleted(todo.completed);
+  };
+
+  const handleSaveEdit = () => {
+    if (editingTodo && editTitle.trim()) {
+      updateTodoMutation.mutate({
+        id: editingTodo.id,
+        title: editTitle.trim(),
+        completed: editCompleted,
+      });
+    }
+  };
+
+  const handleToggleComplete = (todo: { id: string; title: string; completed: boolean }) => {
+    updateTodoMutation.mutate({
+      id: todo.id,
+      completed: !todo.completed,
+    });
+  };
+
+  const handleDeleteTodo = (id: string) => {
+    deleteTodoMutation.mutate(id);
   };
 
   if (isLoading) {
@@ -127,7 +207,8 @@ export function TodoList() {
                         <Group gap="sm" align="center" mb="xs">
                           <Checkbox
                             checked={todo.completed}
-                            onChange={() => {}} // TODO: Implement toggle functionality
+                            onChange={() => handleToggleComplete(todo)}
+                            disabled={updateTodoMutation.isPending}
                             size="sm"
                           />
                           <Text
@@ -140,27 +221,30 @@ export function TodoList() {
                             {todo.title}
                           </Text>
                         </Group>
-                        <Group gap="xs">
-                          <Badge
-                            variant={todo.completed ? 'light' : 'filled'}
-                            color={todo.completed ? 'green' : 'blue'}
-                            size="sm"
-                          >
-                            {todo.completed ? 'Completed' : 'Pending'}
-                          </Badge>
-                          <Text size="xs" c="dimmed">
-                            Created: {new Date(todo.createdAt).toLocaleDateString()}
-                          </Text>
-                        </Group>
+                        <Text size="xs" c="dimmed">
+                          Created: {new Date(todo.createdAt).toLocaleDateString()}
+                        </Text>
                       </Box>
-                      <ActionIcon
-                        variant="light"
-                        color="red"
-                        size="sm"
-                        onClick={() => {}} // TODO: Implement delete functionality
-                      >
-                        <IconTrash size={16} />
-                      </ActionIcon>
+                      <Group gap="xs">
+                        <ActionIcon
+                          variant="light"
+                          color="blue"
+                          size="sm"
+                          onClick={() => handleEditTodo(todo)}
+                          disabled={updateTodoMutation.isPending}
+                        >
+                          <IconEdit size={16} />
+                        </ActionIcon>
+                        <ActionIcon
+                          variant="light"
+                          color="red"
+                          size="sm"
+                          onClick={() => handleDeleteTodo(todo.id)}
+                          disabled={deleteTodoMutation.isPending}
+                        >
+                          <IconTrash size={16} />
+                        </ActionIcon>
+                      </Group>
                     </Group>
                   </Card>
                 ))}
@@ -168,6 +252,47 @@ export function TodoList() {
             )}
           </Stack>
         </Card>
+
+        {/* Edit Todo Modal */}
+        <Modal
+          opened={editingTodo !== null}
+          onClose={() => setEditingTodo(null)}
+          title="Edit Todo"
+          size="md"
+        >
+          <Stack gap="md">
+            <Textarea
+              label="Title"
+              placeholder="Enter todo title..."
+              value={editTitle}
+              onChange={(event) => setEditTitle(event.currentTarget.value)}
+              maxLength={500}
+              autosize
+              minRows={2}
+            />
+            <Checkbox
+              label="Completed"
+              checked={editCompleted}
+              onChange={(event) => setEditCompleted(event.currentTarget.checked)}
+            />
+            <Group justify="flex-end" gap="sm">
+              <Button
+                variant="light"
+                onClick={() => setEditingTodo(null)}
+                disabled={updateTodoMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSaveEdit}
+                disabled={!editTitle.trim() || updateTodoMutation.isPending}
+                loading={updateTodoMutation.isPending}
+              >
+                Save Changes
+              </Button>
+            </Group>
+          </Stack>
+        </Modal>
       </Stack>
     </Box>
   );

@@ -13,7 +13,16 @@ import (
 var _ StrictServerInterface = (*Server)(nil)
 
 type Server struct {
-	todoService *TodoService
+	todoStore TodoStore
+}
+
+// TodoStore abstracts todo persistence for Dependency Inversion and easier testing.
+type TodoStore interface {
+	CreateTodo(title string) scheme.Todo
+	GetAllTodos() []scheme.Todo
+	GetTodoByID(id string) (scheme.Todo, bool)
+	UpdateTodo(id string, title *string, completed *bool) (scheme.Todo, bool)
+	DeleteTodo(id string) bool
 }
 
 type TodoService struct {
@@ -96,10 +105,10 @@ func (s *TodoService) DeleteTodo(id string) bool {
 	return true
 }
 
-func NewServer() *Server {
-	return &Server{
-		todoService: NewTodoService(),
-	}
+func NewServer() *Server { return NewServerWithStore(NewTodoService()) }
+
+func NewServerWithStore(store TodoStore) *Server {
+	return &Server{todoStore: store}
 }
 
 func (s *Server) GetHealth(ctx context.Context, req GetHealthRequestObject) (GetHealthResponseObject, error) {
@@ -109,7 +118,7 @@ func (s *Server) GetHealth(ctx context.Context, req GetHealthRequestObject) (Get
 }
 
 func (s *Server) GetTodos(ctx context.Context, req GetTodosRequestObject) (GetTodosResponseObject, error) {
-	todos := s.todoService.GetAllTodos()
+	todos := s.todoStore.GetAllTodos()
 	return GetTodos200JSONResponse(todos), nil
 }
 
@@ -135,7 +144,7 @@ func (s *Server) CreateTodo(ctx context.Context, req CreateTodoRequestObject) (C
 		}, nil
 	}
 
-	todo := s.todoService.CreateTodo(req.Body.Title)
+	todo := s.todoStore.CreateTodo(req.Body.Title)
 	return CreateTodo201JSONResponse(todo), nil
 }
 
@@ -171,7 +180,7 @@ func (s *Server) UpdateTodo(ctx context.Context, req UpdateTodoRequestObject) (U
 		}, nil
 	}
 
-	todo, found := s.todoService.UpdateTodo(req.Id, req.Body.Title, req.Body.Completed)
+	todo, found := s.todoStore.UpdateTodo(req.Id, req.Body.Title, req.Body.Completed)
 	if !found {
 		return UpdateTodo404JSONResponse{
 			Code:    404,
@@ -183,7 +192,7 @@ func (s *Server) UpdateTodo(ctx context.Context, req UpdateTodoRequestObject) (U
 }
 
 func (s *Server) DeleteTodo(ctx context.Context, req DeleteTodoRequestObject) (DeleteTodoResponseObject, error) {
-	deleted := s.todoService.DeleteTodo(req.Id)
+	deleted := s.todoStore.DeleteTodo(req.Id)
 	if !deleted {
 		return DeleteTodo404JSONResponse{
 			Code:    404,

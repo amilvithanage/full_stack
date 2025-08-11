@@ -15,6 +15,9 @@ A modern full-stack Todo application built with Go backend and React frontend, f
 - ✅ Health check endpoint
 - ✅ Create new todo items
 - ✅ List all todo items
+- ✅ Update existing todo items
+- ✅ Delete todo items
+- ✅ Toggle todo completion status
 - ✅ Modern, responsive UI with Mantine components
 - ✅ Real-time updates using React Query
 - ✅ Type-safe API client generated from OpenAPI spec
@@ -109,6 +112,8 @@ full_stack/
 ### Todos
 - `GET /todos` - Retrieve all todo items
 - `POST /todos` - Create a new todo item
+- `PUT /todos/{id}` - Update a todo item
+- `DELETE /todos/{id}` - Delete a todo item
 
 ### Data Models
 
@@ -126,6 +131,14 @@ full_stack/
 ```json
 {
   "title": "Todo title"
+}
+```
+
+**Update Todo Request:**
+```json
+{
+  "title": "Updated todo title",
+  "completed": true
 }
 ```
 

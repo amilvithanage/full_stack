@@ -46,5 +46,17 @@ type Todo struct {
 	Title string `json:"title"`
 }
 
+// UpdateTodoRequest defines model for UpdateTodoRequest.
+type UpdateTodoRequest struct {
+	// Completed Whether the todo is completed
+	Completed *bool `json:"completed,omitempty"`
+
+	// Title The title/description of the todo
+	Title *string `json:"title,omitempty"`
+}
+
 // CreateTodoJSONRequestBody defines body for CreateTodo for application/json ContentType.
 type CreateTodoJSONRequestBody = CreateTodoRequest
+
+// UpdateTodoJSONRequestBody defines body for UpdateTodo for application/json ContentType.
+type UpdateTodoJSONRequestBody = UpdateTodoRequest

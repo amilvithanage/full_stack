@@ -4,7 +4,7 @@ A modern full-stack Todo application built with Go backend and React frontend, f
 
 ## 🏗️ Architecture
 
-- **Backend**: Go 1.24.2 with Gin framework and OpenAPI code generation
+- **Backend**: Go 1.24.2 using net/http with OpenAPI code generation (oapi-codegen)
 - **Frontend**: React 19 with TypeScript, Vite, and Mantine UI components
 - **API**: RESTful API with OpenAPI 3.0 specification
 - **Data Store**: In-memory storage for todo items
@@ -29,7 +29,7 @@ A modern full-stack Todo application built with Go backend and React frontend, f
 ### Prerequisites
 
 - **Go**: Version 1.24.2 or later
-- **Node.js**: Version 23 or later
+- **Node.js**: Version 18 or later
 - **Docker**: For containerized deployment
 
 ### Option 1: Docker (Recommended)
@@ -46,7 +46,7 @@ docker-compose up --build
 ```
 
 The application will be available at:
-- Frontend: http://localhost:80
+- Frontend: http://localhost:3000
 - Backend API: http://localhost:8080
 
 ### Option 2: Local Development
@@ -168,9 +168,6 @@ cd frontend && npm run openapi
 ```bash
 # Backend tests
 go test ./...
-
-# Frontend tests
-cd frontend && npm test
 ```
 
 ## 🐳 Docker
@@ -181,7 +178,7 @@ cd frontend && npm test
 - Health check endpoint at `/health`
 
 ### Frontend Container
-- Base image: `node:23-alpine` for build, `nginx:alpine` for runtime
+- Base image: `node:18-alpine` for build, `nginx:alpine` for runtime
 - Exposes port 80
 - Serves static files with Nginx
 

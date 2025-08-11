@@ -8,6 +8,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Notifications } from '@mantine/notifications';
 import { Header } from './components/Header';
 import { TodoList } from './components/TodoList';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AuthContainer } from './components/Auth/AuthContainer';
+import { ProtectedRoute } from './components/Auth/ProtectedRoute';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,13 +21,31 @@ const queryClient = new QueryClient({
   },
 });
 
+function AppContent() {
+  const { currentUser } = useAuth();
+
+  return (
+    <>
+      <Header />
+      {currentUser ? (
+        <ProtectedRoute>
+          <TodoList />
+        </ProtectedRoute>
+      ) : (
+        <AuthContainer />
+      )}
+    </>
+  );
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <MantineProvider>
         <Notifications />
-        <Header />
-        <TodoList />
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
       </MantineProvider>
     </QueryClientProvider>
   );
